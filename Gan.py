@@ -95,12 +95,10 @@ class GAN():
                     self.sample_images(f'{epoch}_{batch}', save_img=True)
 
     def sample_images(self, name, save_img=False):
-        # 观察隐变量的两个维度变化是如何影响输出结果的
-        n = 10  # figure with 15x15 digits
+        n = 10
         digit_size = 28
         figure = np.zeros((digit_size * n, digit_size * n))
 
-        # 用正态分布的分位数来构建隐变量对
         grid_x = norm.ppf(np.linspace(0.01, 0.99, n))
         grid_y = norm.ppf(np.linspace(0.01, 0.99, n))
 
