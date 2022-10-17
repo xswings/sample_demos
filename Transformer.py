@@ -18,9 +18,10 @@ import time, argparse, functools
 import numpy as np
 import matplotlib.pyplot as plt
 
-tf.enable_eager_execution()
+# tf.enable_eager_execution()
 parser = argparse.ArgumentParser(description='翻译Transform模型超参数设置')
 parser.add_argument('--batch_size', type=int, default=64, help='batchsize')
+parser.add_argument('--epochs', type=int, default=5, help='batchsize')
 parser.add_argument('--embedding_dim', type=int, default=256, help='embeddingsize')
 parser.add_argument('--max_length', type=int, default=40, help='max_length')
 parser.add_argument('--buffer_size', type=int, default=20000, help='buffer_size')
@@ -30,15 +31,16 @@ parser.add_argument('--d_model', type=int, default=128, help='dataPath')
 parser.add_argument('--dff', type=int, default=512, help='dataPath')
 parser.add_argument('--num_heads', type=int, default=8, help='dataPath')
 parser.add_argument('--dropout_rate', type=int, default=0.1, help='dataPath')
+FLAGS = parser.parse_args()
 
 
 class DataHelper(object):
     def __init__(self):
         examples = tfds.load('ted_hrlr_translate/pt_to_en', as_supervised=True)
         self.train_examples, self.val_examples = examples['train'], examples['validation']
-        self.tokenizer_en = tfds.features.text.SubwordTextEncoder.build_from_corpus(
+        self.tokenizer_en = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
             (en.numpy() for pt, en in self.train_examples), target_vocab_size=2 ** 13)
-        self.tokenizer_pt = tfds.features.text.SubwordTextEncoder.build_from_corpus(
+        self.tokenizer_pt = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(
             (pt.numpy() for pt, en in self.train_examples), target_vocab_size=2 ** 13)
 
     def get_datasets(self, max_length, batch_size):
@@ -51,10 +53,10 @@ class DataHelper(object):
         return train_dataset
 
     def __encode(self, lang1, lang2):
-        lang1 = [self.tokenizer_pt.vocab_size] + self.tokenizer_pt.encode(
-            lang1.numpy()) + [self.tokenizer_pt.vocab_size + 1]
-        lang2 = [self.tokenizer_en.vocab_size] + self.tokenizer_en.encode(
-            lang2.numpy()) + [self.tokenizer_en.vocab_size + 1]
+        lang1 = [self.tokenizer_pt.vocab_size] + self.tokenizer_pt.encode(lang1.numpy()) + [
+            self.tokenizer_pt.vocab_size + 1]
+        lang2 = [self.tokenizer_en.vocab_size] + self.tokenizer_en.encode(lang2.numpy()) + [
+            self.tokenizer_en.vocab_size + 1]
         return lang1, lang2
 
     def __filter_max_length(self, x, y, max_length):
@@ -115,10 +117,9 @@ class EncoderLayer(tf.keras.layers.Layer):
         self.dropout2 = tf.keras.layers.Dropout(rate)
 
     def point_wise_feed_forward_network(self, d_model, dff):
-        return tf.keras.Sequential([
-            tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
-            tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
-        ])
+        return tf.keras.Sequential([tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
+                                    tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
+                                    ])
 
     def call(self, x, training, mask):
         attn_output, _ = self.mha(x, x, x, mask)  # (batch_size, input_seq_len, d_model)
@@ -144,10 +145,9 @@ class DecoderLayer(tf.keras.layers.Layer):
         self.dropout3 = tf.keras.layers.Dropout(rate)
 
     def point_wise_feed_forward_network(self, d_model, dff):  # 前馈网络其实就是先正达维度在减少到原来的维度，前后shape不变
-        return tf.keras.Sequential([
-            tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
-            tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
-        ])
+        return tf.keras.Sequential([tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
+                                    tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
+                                    ])
 
     def call(self, x, enc_output, training, look_ahead_mask, padding_mask):
         attn1, attn_weights_block1 = self.mha1(x,
@@ -214,7 +214,7 @@ class Decoder(tf.keras.layers.Layer):
 
     def call(self, x, enc_output, training, look_ahead_mask, padding_mask):
         seq_len = tf.shape(x)[1]
-        attention_weights = {}
+        attention_weights = dict()
         x = self.embedding(x)  # (batch_size, target_seq_len, d_model)
         x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         x += self.pos_encoding[:, :seq_len, :]
@@ -318,22 +318,21 @@ class NMT(object):
         return tf.reduce_mean(loss_)
 
     def train(self, train_dataset):
-        EPOCHS = 2
-        for epoch in range(EPOCHS):
+        for epoch in range(FLAGS.epochs):
             start = time.time()
             self.train_loss.reset_states()
             self.train_accuracy.reset_states()
             for (batch, (inp, tar)) in enumerate(train_dataset):
                 self.train_step(inp, tar)
                 if batch % 50 == 0:
-                    print('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
-                        epoch + 1, batch, self.train_loss.result(), self.train_accuracy.result()))
+                    print('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(epoch + 1, batch,
+                                                                                 self.train_loss.result(),
+                                                                                 self.train_accuracy.result()))
             if (epoch + 1) % 5 == 0:
                 ckpt_save_path = self.ckpt_manager.save()
                 print('Saving checkpoint for epoch {} at {}'.format(epoch + 1, ckpt_save_path))
-            print(
-                'Epoch {} Loss {:.4f} Accuracy {:.4f}'.format(epoch + 1, self.train_loss.result(),
-                                                              self.train_accuracy.result()))
+            print('Epoch {} Loss {:.4f} Accuracy {:.4f}'.format(epoch + 1, self.train_loss.result(),
+                                                                self.train_accuracy.result()))
             print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
 
     def translate(self, sentence, plot=''):
@@ -404,7 +403,6 @@ class NMT(object):
 
 
 if __name__ == '__main__':
-    FLAGS = parser.parse_known_args()[0]
     data_helper = DataHelper()
     train_dataset = data_helper.get_datasets(max_length=FLAGS.max_length, batch_size=FLAGS.batch_size)
     nmt = NMT(data_helper.tokenizer_pt,
