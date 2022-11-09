@@ -8,7 +8,7 @@ class VAE(object):
     def __init__(self):
         self.img_rows = 28
         self.img_cols = 28
-        self.latent_dim = 2
+        self.latent_dim = 2 # 隐变量取2维只是为了方便后面画图
         self.intermediate_dim = 256
         self.vae = self.build_VAE()
         self.encoder = self.build_Encoder()
