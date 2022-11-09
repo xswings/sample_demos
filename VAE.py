@@ -70,7 +70,7 @@ class VAE(object):
 
         for epoch in range(epochs):
             for batch, (imgs, labels) in enumerate(dataset):
-                g_loss = self.vae.train_on_batch(imgs, labels)
+                g_loss = self.vae.train_on_batch(imgs)
                 print(f"epoch:{epoch},batch:{batch},g_loss:{g_loss}")
                 if batch % sample_interval == 0:
                     self.latent_distribution(X_test, Y_test, batch_size, f'{epoch}_{batch}',save_img=True)
