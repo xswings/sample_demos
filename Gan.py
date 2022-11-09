@@ -85,6 +85,7 @@ class GAN():
                 fake = np.zeros((batch_size, 1))
                 z = np.random.normal(0, 1, (batch_size, self.latent_dim))
                 g_imgs = self.generator.predict(z)
+                # d_loss = self.discriminator.train_on_batch(tf.concat((imgs, g_imgs),axis=0), tf.concat((real, fake),axis=0))
                 d_loss_real = self.discriminator.train_on_batch(imgs, real)
                 d_loss_fake = self.discriminator.train_on_batch(g_imgs, fake)
                 d_loss = np.add(d_loss_real, d_loss_fake) / 2
