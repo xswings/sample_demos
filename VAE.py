@@ -49,7 +49,7 @@ class VAE(object):
         vae = tf.keras.models.Model(self.encoder_input, x_decoded_mean)
 
         # xent_loss是重构loss，kl_loss是KL loss
-        xent_loss = tf.keras.losses.binary_crossentropy(self.encoder_input, x_decoded_mean) * self.img_cols * self.img_rows
+        xent_loss = tf.keras.losses.binary_crossentropy(self.encoder_input, x_decoded_mean)
         # xent_loss = tf.reduce_sum(tf.keras.backend.binary_crossentropy(self.encoder_input, x_decoded_mean), axis=-1)
         kl_loss = - 0.5 * tf.math.reduce_sum(1 + self.z_log_var - tf.math.pow(self.z_mean, 2) - tf.math.exp(self.z_log_var), axis=-1)
         vae_loss = tf.math.reduce_mean(xent_loss + kl_loss)
